@@ -26,7 +26,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
 
         ScreenHandler handler = (ScreenHandler)(Object) this;
 
-        // ✅ Allow only chest, barrel, hopper, dispenser, dropper
+        // Allow only chest, barrel, hopper, dispenser, dropper
         if (!(handler instanceof GenericContainerScreenHandler ||
                 handler instanceof HopperScreenHandler ||
                 handler instanceof Generic3x3ContainerScreenHandler)) {
@@ -56,7 +56,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
 
                             LoggerFactory.getLogger("ShulkerPickupLogger").info(
-                                    "{} removed someone else's Shulker: {} from container at {} in {}",
+                                    "{} "+"borrow"+" someone else's Shulker: {} from container at {} in {}",
                                     playerName, name, pos, dimension
                             );
                         }
