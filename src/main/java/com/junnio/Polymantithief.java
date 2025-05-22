@@ -22,12 +22,22 @@ public class Polymantithief implements ModInitializer {
 		// Register the server-side packet handler
 		ServerPlayNetworking.registerGlobalReceiver(ShulkerLogPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
-				LOGGER.info("{} "+"borrowed"+" someone else's Shulker named: {} at {} in {} from a container",
-						payload.playerName(),
-						payload.shulkerName(),
-						payload.position(),
-						payload.dimension()
-				);
+				if (payload.isContainer()){
+					LOGGER.info("{} \"borrowed\" someone else's Shulker box named: {} at {} in {} from a container",
+							payload.playerName(),
+							payload.shulkerName(),
+							payload.position(),
+							payload.dimension()
+					);
+				}
+				else {
+					LOGGER.info("{} \"borrowed\" someone else's Shulker box named: {} at {} in {}",
+							payload.playerName(),
+							payload.shulkerName(),
+							payload.position(),
+							payload.dimension()
+					);
+				}
 
 			});
 		});

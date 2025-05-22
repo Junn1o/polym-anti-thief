@@ -11,7 +11,8 @@ public record ShulkerLogPayload(
         String playerName,
         String shulkerName,
         String position,
-        String dimension
+        String dimension,
+        boolean isContainer
 ) implements CustomPayload {
 
     //public static final Identifier ID = Identifier.of("polymantithief", "shulker_log");
@@ -31,6 +32,7 @@ public record ShulkerLogPayload(
             PacketCodecs.STRING, ShulkerLogPayload::shulkerName,
             PacketCodecs.STRING, ShulkerLogPayload::position,
             PacketCodecs.STRING, ShulkerLogPayload::dimension,
+            PacketCodecs.BOOLEAN, ShulkerLogPayload::isContainer,
             ShulkerLogPayload::new
     );
 

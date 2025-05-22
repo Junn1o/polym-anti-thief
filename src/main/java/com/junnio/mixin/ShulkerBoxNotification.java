@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemEntity.class)
 public class ShulkerBoxNotification {
@@ -20,35 +21,33 @@ public class ShulkerBoxNotification {
     private static final Logger LOGGER = LoggerFactory.getLogger(Polymantithief.MOD_ID);
 
     @Inject(method = "onPlayerCollision", at = @At("TAIL"))
-    private void onPlayerPickup(PlayerEntity player) {
-        if (player.getWorld().isClient()) return;
+    private void onPlayerPickup(PlayerEntity player, CallbackInfo ci) {
+        if (!player.getWorld().isClient()) {
 
-        ItemEntity itemEntity = (ItemEntity) (Object) this;
+            ItemEntity itemEntity = (ItemEntity)(Object)this;
+            if (itemEntity.isRemoved()) {
+                ItemStack stack = itemEntity.getStack();
+                if (stack.getItem() instanceof BlockItem blockItem &&
+                        blockItem.getBlock() instanceof ShulkerBoxBlock) {
 
-        // Only proceed if the item was picked up (entity removed)
-        if (!itemEntity.isRemoved()) return;
+                    Text customName = stack.getCustomName();
+                    if (customName != null) {
+                        String name = customName.getString();
+                        String playerName = player.getName().getString();
 
-        ItemStack stack = itemEntity.getStack();
-        Item item = stack.getItem();
+                        if (!name.endsWith("+" + playerName)) {
+                            double x = itemEntity.getX();
+                            double y = itemEntity.getY();
+                            double z = itemEntity.getZ();
 
-        // Check if it's a Shulker Box
-        if (!(item instanceof BlockItem blockItem)) return;
-        if (!(blockItem.getBlock() instanceof ShulkerBoxBlock)) return;
-
-        Text customName = stack.getCustomName();
-        if (customName == null) return;
-
-        String name = customName.getString();
-        String playerName = player.getName().getString();
-
-        // Only log if the custom name does NOT end with "+playerName"
-        if (name.endsWith("+" + playerName)) return;
-
-        // Prepare log data
-        String pos = String.format("(%.2f, %.2f, %.2f)", itemEntity.getX(), itemEntity.getY(), itemEntity.getZ());
-        String dimension = player.getWorld().getRegistryKey().getValue().toString();
-
-        // Log to server console
-        LOGGER.info("{} borrowed someone else's Shulker named: {} at {} in {}", playerName, name, pos, dimension);
+                            String pos = String.format("(%.2f, %.2f, %.2f)", x, y, z);
+                            String dimension = player.getWorld().getRegistryKey().getValue().toString();
+                            LOGGER.info("{} "+"borrow"+" someone else's Shulker: {} at {} in {}",
+                                    playerName, name, pos, dimension);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

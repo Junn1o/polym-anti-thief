@@ -2,69 +2,85 @@ package com.junnio.mixin.client;
 
 import com.junnio.ModNetworking;
 import net.minecraft.block.ShulkerBoxBlock;
+import net.minecraft.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.screen.Generic3x3ContainerScreenHandler;
-import net.minecraft.screen.GenericContainerScreenHandler;
-import net.minecraft.screen.HopperScreenHandler;
-import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.*;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import static com.junnio.Polymantithief.LOGGER;
 
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
 
     @Inject(method = "onSlotClick", at = @At("HEAD"))
-    private void onShulkerTakenFromContainer(int slotId, SlotActionType actionType, PlayerEntity player) {
-        if (!player.getWorld().isClient()) return;
+    private void onShulkerTakenFromContainer(
+            int slotId,
+            int button,
+            SlotActionType actionType,
+            PlayerEntity player,
+            CallbackInfo ci
+    ){
+        if (player.getWorld().isClient()) return;
 
         ScreenHandler handler = (ScreenHandler)(Object) this;
 
         // Allow only chest, barrel, hopper, dispenser, dropper
-        boolean isContainer =
-                handler instanceof GenericContainerScreenHandler ||
-                        handler instanceof HopperScreenHandler ||
-                        handler instanceof Generic3x3ContainerScreenHandler;
+        if ((handler instanceof GenericContainerScreenHandler ||
+                handler instanceof HopperScreenHandler ||
+                handler instanceof Generic3x3ContainerScreenHandler)) {
+            if (slotId >= 0 && slotId < handler.slots.size()) {
+                Slot slot = handler.getSlot(slotId);
 
-        if (!isContainer) return;
+                // Ignore player inventory
+                if (slot != null && slot.inventory != player.getInventory()) {
 
-        // Make sure slot is within bounds
-        if (slotId < 0 || slotId >= handler.slots.size()) return;
+                    // Only care if taking items out
+                    if (actionType == SlotActionType.PICKUP || actionType == SlotActionType.QUICK_MOVE) {
+                        ItemStack stack = slot.getStack();
 
-        Slot slot = handler.getSlot(slotId);
+                        if (!stack.isEmpty() &&
+                                stack.getItem() instanceof BlockItem blockItem &&
+                                blockItem.getBlock() instanceof ShulkerBoxBlock) {
 
-        // Ignore if slot is null or belongs to player inventory
-        if (slot == null || slot.inventory == player.getInventory()) return;
+                            Text customName = stack.getCustomName();
+                            String playerName = player.getName().getString();
+                            String name = customName != null ? customName.getString() : stack.getName().getString();
 
-        // Only care if item is being taken out
-        if (actionType != SlotActionType.PICKUP && actionType != SlotActionType.QUICK_MOVE) return;
-
-        ItemStack stack = slot.getStack();
-        if (stack.isEmpty()) return;
-
-        Item item = stack.getItem();
-        if (!(item instanceof BlockItem blockItem)) return;
-        if (!(blockItem.getBlock() instanceof ShulkerBoxBlock)) return;
-
-        // Determine custom name
-        Text customName = stack.getCustomName();
-        if (customName == null) return;
-        String playerName = player.getName().getString();
-        String name = customName.getString();
-
-        // Only report if name doesn't end with +playerName
-        if (name.endsWith("+" + playerName)) return;
-
-        String dimension = player.getWorld().getRegistryKey().getValue().toString();
-        String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-
-        ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension);
+                            if (!name.endsWith("+" + playerName) && name.contains("+")) {
+                                String dimension = player.getWorld().getRegistryKey().getValue().toString();
+                                String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+                                boolean isContainer = true;
+                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (handler instanceof ShulkerBoxScreenHandler){
+                if (slotId >= 0 && slotId < handler.slots.size()) {
+                    Slot clickedSlot = handler.slots.get(slotId);
+                    if (clickedSlot.hasStack()) {
+                        ItemStack stack = clickedSlot.getStack();
+                        if (!(stack.getItem() instanceof BlockItem blockItem &&
+                                blockItem.getBlock() instanceof ShulkerBoxBlock)) {
+                            if (slotId < 27 && actionType == SlotActionType.PICKUP && clickedSlot.hasStack()) {
+                                LOGGER.info("{} took item {} from Shulker Box", player.getName().getString(), stack.getName().getString());
+                            }
+                        }
+                    }
+                }
+        }
     }
 }
 
