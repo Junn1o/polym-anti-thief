@@ -1,7 +1,10 @@
 package com.junnio;
 
+import com.junnio.net.ShulkerLogPayload;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,10 +18,20 @@ public class Polymantithief implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
+		PayloadTypeRegistry.playC2S().register(ShulkerLogPayload.ID, ShulkerLogPayload.PACKET_CODEC);
+		// Register the server-side packet handler
+		ServerPlayNetworking.registerGlobalReceiver(ShulkerLogPayload.ID, (payload, context) -> {
+			context.server().execute(() -> {
+				LOGGER.info("{} "+"borrowed"+" someone else's Shulker named: {} at {} in {} from a container",
+						payload.playerName(),
+						payload.shulkerName(),
+						payload.position(),
+						payload.dimension()
+				);
 
+			});
+		});
+		LOGGER.info("Polymantithief initialized!");
 		LOGGER.info("Hello Fabric world!");
 	}
 }

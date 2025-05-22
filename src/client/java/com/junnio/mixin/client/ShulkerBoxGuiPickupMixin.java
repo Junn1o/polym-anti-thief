@@ -1,8 +1,11 @@
 package com.junnio.mixin.client;
 
+import com.junnio.ModNetworking;
+import com.junnio.PolymantithiefClient;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.Generic3x3ContainerScreenHandler;
 import net.minecraft.screen.GenericContainerScreenHandler;
@@ -22,48 +25,49 @@ public abstract class ShulkerBoxGuiPickupMixin {
 
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(int slotId, int button, SlotActionType actionType, PlayerEntity player, CallbackInfo ci) {
-        if (player.getWorld().isClient()) return;
+        if (!player.getWorld().isClient()) return;
 
         ScreenHandler handler = (ScreenHandler)(Object) this;
 
         // Allow only chest, barrel, hopper, dispenser, dropper
-        if (!(handler instanceof GenericContainerScreenHandler ||
-                handler instanceof HopperScreenHandler ||
-                handler instanceof Generic3x3ContainerScreenHandler)) {
-            return;
-        }
+        boolean isContainer =
+                handler instanceof GenericContainerScreenHandler ||
+                        handler instanceof HopperScreenHandler ||
+                        handler instanceof Generic3x3ContainerScreenHandler;
 
-        if (slotId >= 0 && slotId < handler.slots.size()) {
-            Slot slot = handler.getSlot(slotId);
+        if (!isContainer) return;
 
-            // Ignore player inventory
-            if (slot != null && slot.inventory != player.getInventory()) {
+        // Make sure slot is within bounds
+        if (slotId < 0 || slotId >= handler.slots.size()) return;
 
-                // Only care if taking items out
-                if (actionType == SlotActionType.PICKUP || actionType == SlotActionType.QUICK_MOVE) {
-                    ItemStack stack = slot.getStack();
+        Slot slot = handler.getSlot(slotId);
 
-                    if (!stack.isEmpty() &&
-                            stack.getItem() instanceof BlockItem blockItem &&
-                            blockItem.getBlock() instanceof ShulkerBoxBlock) {
+        // Ignore if slot is null or belongs to player inventory
+        if (slot == null || slot.inventory == player.getInventory()) return;
 
-                        Text customName = stack.getCustomName();
-                        String playerName = player.getName().getString();
-                        String name = customName != null ? customName.getString() : stack.getName().getString();
+        // Only care if item is being taken out
+        if (actionType != SlotActionType.PICKUP && actionType != SlotActionType.QUICK_MOVE) return;
 
-                        if (!name.endsWith("+" + playerName)) {
-                            String dimension = player.getWorld().getRegistryKey().getValue().toString();
-                            String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+        ItemStack stack = slot.getStack();
+        if (stack.isEmpty()) return;
 
-                            LoggerFactory.getLogger("ShulkerPickupLogger").info(
-                                    "{} "+"borrow"+" someone else's Shulker: {} from container at {} in {}",
-                                    playerName, name, pos, dimension
-                            );
-                        }
-                    }
-                }
-            }
-        }
+        Item item = stack.getItem();
+        if (!(item instanceof BlockItem blockItem)) return;
+        if (!(blockItem.getBlock() instanceof ShulkerBoxBlock)) return;
+
+        // Determine custom name
+        Text customName = stack.getCustomName();
+        if (customName == null) return;
+        String playerName = player.getName().getString();
+        String name = customName.getString();
+
+        // Only report if name doesn't end with +playerName
+        if (name.endsWith("+" + playerName)) return;
+
+        String dimension = player.getWorld().getRegistryKey().getValue().toString();
+        String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+
+        ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension);
     }
 }
 
