@@ -1,7 +1,6 @@
 package com.junnio.mixin.client;
 
 import com.junnio.ModNetworking;
-import com.junnio.PolymantithiefClient;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
@@ -14,17 +13,15 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
 
     @Inject(method = "onSlotClick", at = @At("HEAD"))
-    private void onShulkerTakenFromContainer(int slotId, int button, SlotActionType actionType, PlayerEntity player, CallbackInfo ci) {
+    private void onShulkerTakenFromContainer(int slotId, SlotActionType actionType, PlayerEntity player) {
         if (!player.getWorld().isClient()) return;
 
         ScreenHandler handler = (ScreenHandler)(Object) this;

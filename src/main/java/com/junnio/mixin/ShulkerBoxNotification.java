@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemEntity.class)
 public class ShulkerBoxNotification {
@@ -21,7 +20,7 @@ public class ShulkerBoxNotification {
     private static final Logger LOGGER = LoggerFactory.getLogger(Polymantithief.MOD_ID);
 
     @Inject(method = "onPlayerCollision", at = @At("TAIL"))
-    private void onPlayerPickup(PlayerEntity player, CallbackInfo ci) {
+    private void onPlayerPickup(PlayerEntity player) {
         if (player.getWorld().isClient()) return;
 
         ItemEntity itemEntity = (ItemEntity) (Object) this;
