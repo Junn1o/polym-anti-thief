@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import static com.junnio.Polymantithief.LOGGER;
 
@@ -67,20 +68,31 @@ public abstract class ShulkerBoxGuiPickupMixin {
                 }
             }
         }
-        else if (handler instanceof ShulkerBoxScreenHandler){
-                if (slotId >= 0 && slotId < handler.slots.size()) {
-                    Slot clickedSlot = handler.slots.get(slotId);
-                    if (clickedSlot.hasStack()) {
-                        ItemStack stack = clickedSlot.getStack();
-                        if (!(stack.getItem() instanceof BlockItem blockItem &&
-                                blockItem.getBlock() instanceof ShulkerBoxBlock)) {
-                            if (slotId < 27 && actionType == SlotActionType.PICKUP && clickedSlot.hasStack()) {
-                                LOGGER.info("{} took item {} from Shulker Box", player.getName().getString(), stack.getName().getString());
-                            }
-                        }
+        else if (handler instanceof ShulkerBoxScreenHandler) {
+            if (slotId >= 0 && slotId < handler.slots.size()) {
+                Slot clickedSlot = handler.getSlot(slotId);
+
+                if (actionType == SlotActionType.QUICK_MOVE &&
+                        clickedSlot.inventory != player.getInventory()) {
+                    // For Shift+Click, items go directly to inventory
+                    ItemStack stack = clickedSlot.getStack();
+                    if (!stack.isEmpty()) {
+                        LOGGER.info("{} quick-moved item {} from Shulker Box into inventory",
+                                player.getName().getString(),
+                                stack.getName().getString());
+                    }
+                } else if (clickedSlot.inventory == player.getInventory()) {
+                    // Normal click placing into inventory
+                    ItemStack stack = clickedSlot.getStack();
+                    if (!stack.isEmpty() && actionType == SlotActionType.PICKUP) {
+                        LOGGER.info("{} took item {} from Shulker Box into inventory",
+                                player.getName().getString(),
+                                stack.getName().getString());
                     }
                 }
+            }
         }
+
     }
 }
 
