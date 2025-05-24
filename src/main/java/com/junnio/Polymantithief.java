@@ -22,15 +22,12 @@ public class Polymantithief implements ModInitializer {
 
 		// Register shutdown hook
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-			LOGGER.info("Server stopping - shutting down database connection...");
 			DatabaseManager.shutdown();
 		});
 
-		PayloadTypeRegistry.playC2S().register(ShulkerLogPayload.ID, ShulkerLogPayload.PACKET_CODEC);
-
 		// Register the server-side packet handler
+		PayloadTypeRegistry.playC2S().register(ShulkerLogPayload.ID, ShulkerLogPayload.PACKET_CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(ShulkerLogPayload.ID, (payload, context) -> {
-			// Ensure we're on the server thread
 			context.server().execute(() -> {
 				DatabaseManager.insertLog(
 						payload.playerName(),
@@ -43,7 +40,5 @@ public class Polymantithief implements ModInitializer {
 				);
 			});
 		});
-
-		LOGGER.info("Polymantithief initialized!");
 	}
 }

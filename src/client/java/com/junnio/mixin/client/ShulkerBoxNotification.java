@@ -1,6 +1,6 @@
 package com.junnio.mixin.client;
 
-import com.junnio.ModNetworking;
+import com.junnio.net.ModNetworking;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;

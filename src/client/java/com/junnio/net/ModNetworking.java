@@ -1,6 +1,5 @@
-package com.junnio;
+package com.junnio.net;
 
-import com.junnio.net.ShulkerLogPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public class ModNetworking {
