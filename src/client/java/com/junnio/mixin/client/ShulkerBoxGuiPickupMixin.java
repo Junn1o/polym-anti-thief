@@ -1,32 +1,26 @@
 package com.junnio.mixin.client;
 
-import com.junnio.ModNetworking;
+import com.junnio.net.ModNetworking;
 import net.minecraft.block.ShulkerBoxBlock;
-import net.minecraft.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.*;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import static com.junnio.Polymantithief.LOGGER;
 
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
 
-    public String actionName = null;
+    public String actionName = "";
     public boolean isContainer = true;
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(
@@ -36,7 +30,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
             PlayerEntity player,
             CallbackInfo ci
     ) {
-        if (player.getWorld().isClient()) return;
+        //if (player.getWorld().isClient()) return;
 
         ScreenHandler handler = (ScreenHandler) (Object) this;
 
@@ -65,7 +59,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             if (!name.endsWith("+" + playerName) && name.contains("+")) {
                                 String dimension = player.getWorld().getRegistryKey().getValue().toString();
                                 String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer, actionName, null);
+                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer, actionName, actionName);
                             }
                         }
                     }
@@ -108,11 +102,6 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             if (!stack.isEmpty()) {
                                 String dimension = player.getWorld().getRegistryKey().getValue().toString();
                                 String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                LOGGER.info("{} {} {} from '{}'",
-                                        playerName,
-                                        actionName,
-                                        stack.getName().getString(),
-                                        containerName);
                                 ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, isContainer, actionName, stack.getName().getString());
                             }
                         }
