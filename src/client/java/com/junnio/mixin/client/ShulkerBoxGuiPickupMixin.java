@@ -26,7 +26,7 @@ import static com.junnio.Polymantithief.LOGGER;
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
 
-    public String actionName = null;
+    public String actionName = "";
     public boolean isContainer = true;
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(
@@ -36,7 +36,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
             PlayerEntity player,
             CallbackInfo ci
     ) {
-        if (player.getWorld().isClient()) return;
+        //if (player.getWorld().isClient()) return;
 
         ScreenHandler handler = (ScreenHandler) (Object) this;
 
@@ -65,7 +65,8 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             if (!name.endsWith("+" + playerName) && name.contains("+")) {
                                 String dimension = player.getWorld().getRegistryKey().getValue().toString();
                                 String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer, actionName, null);
+                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer, actionName, actionName);
+                                System.out.println("ShulkerBoxGuiPickupMixin: If");
                             }
                         }
                     }
@@ -114,6 +115,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                                         stack.getName().getString(),
                                         containerName);
                                 ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, isContainer, actionName, stack.getName().getString());
+                                System.out.println("ShulkerBoxGuiPickupMixin: Else if");
                             }
                         }
                     }
