@@ -23,12 +23,24 @@ public class Polymantithief implements ModInitializer {
 		ServerPlayNetworking.registerGlobalReceiver(ShulkerLogPayload.ID, (payload, context) -> {
 			context.server().execute(() -> {
 				if (payload.isContainer()){
-					LOGGER.info("{} \"borrowed\" someone else's Shulker box named: {} at {} in {} from a container",
-							payload.playerName(),
-							payload.shulkerName(),
-							payload.position(),
-							payload.dimension()
-					);
+					if (payload.actionName() != null) {
+						LOGGER.info("{} {} {} in someone else's from Shulker Box name: {} at {} in {}",
+								payload.playerName(),
+								payload.actionName(),
+								payload.itemName(),
+								payload.shulkerName(),
+								payload.position(),
+								payload.dimension()
+						);
+					}
+					else {
+						LOGGER.info("{} \"borrowed\" someone else's Shulker box named: {} at {} in {} from a container",
+								payload.playerName(),
+								payload.shulkerName(),
+								payload.position(),
+								payload.dimension()
+						);
+					}
 				}
 				else {
 					LOGGER.info("{} \"borrowed\" someone else's Shulker box named: {} at {} in {}",

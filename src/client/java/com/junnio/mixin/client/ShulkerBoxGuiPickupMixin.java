@@ -3,6 +3,9 @@ package com.junnio.mixin.client;
 import com.junnio.ModNetworking;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
@@ -23,6 +26,8 @@ import static com.junnio.Polymantithief.LOGGER;
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
 
+    public String actionName = null;
+    public boolean isContainer = true;
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(
             int slotId,
@@ -30,10 +35,10 @@ public abstract class ShulkerBoxGuiPickupMixin {
             SlotActionType actionType,
             PlayerEntity player,
             CallbackInfo ci
-    ){
+    ) {
         if (player.getWorld().isClient()) return;
 
-        ScreenHandler handler = (ScreenHandler)(Object) this;
+        ScreenHandler handler = (ScreenHandler) (Object) this;
 
         // Allow only chest, barrel, hopper, dispenser, dropper
         if ((handler instanceof GenericContainerScreenHandler ||
@@ -60,39 +65,61 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             if (!name.endsWith("+" + playerName) && name.contains("+")) {
                                 String dimension = player.getWorld().getRegistryKey().getValue().toString();
                                 String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                boolean isContainer = true;
-                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer);
+                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer, actionName, null);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (handler instanceof ShulkerBoxScreenHandler shulkerHandler) {
+            Screen screen = MinecraftClient.getInstance().currentScreen;
+            if (screen instanceof HandledScreen<?> handledScreen) {
+                String containerName = handledScreen.getTitle().getString();
+                String lowerCaseContainerName = containerName.toLowerCase();
+                String playerName = player.getName().getString();
+                String lowerCasePlayerName = playerName.toLowerCase();
+
+                if (lowerCaseContainerName.contains("+") && !lowerCaseContainerName.endsWith("+" + lowerCasePlayerName)) {
+                    if (slotId >= 0 && slotId < handler.slots.size()) {
+                        Slot clickedSlot = handler.getSlot(slotId);
+
+                        // Map SlotActionType to readable names
+                        actionName = switch (actionType) {
+                            case QUICK_MOVE -> "shift-clicked";
+                            case PICKUP -> "picked up";
+                            case PICKUP_ALL -> "picked up all";
+                            case THROW -> "threw";
+                            case SWAP -> "swapped";
+                            case CLONE -> "cloned";
+                            case QUICK_CRAFT -> "quick-crafted";
+                            default -> "unknown-action"; // Handle other cases
+                        };
+
+                        if ((actionType == SlotActionType.QUICK_MOVE
+                                || actionType == SlotActionType.THROW
+                                || actionType == SlotActionType.PICKUP
+                                || actionType == SlotActionType.PICKUP_ALL
+                                || actionType == SlotActionType.SWAP
+                                || actionType == SlotActionType.CLONE
+                                || actionType == SlotActionType.QUICK_CRAFT)
+                                && clickedSlot.inventory != player.getInventory()) {
+
+                            ItemStack stack = clickedSlot.getStack();
+                            if (!stack.isEmpty()) {
+                                String dimension = player.getWorld().getRegistryKey().getValue().toString();
+                                String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+                                LOGGER.info("{} {} {} from '{}'",
+                                        playerName,
+                                        actionName,
+                                        stack.getName().getString(),
+                                        containerName);
+                                ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, isContainer, actionName, stack.getName().getString());
                             }
                         }
                     }
                 }
             }
         }
-        else if (handler instanceof ShulkerBoxScreenHandler) {
-            if (slotId >= 0 && slotId < handler.slots.size()) {
-                Slot clickedSlot = handler.getSlot(slotId);
-
-                if (actionType == SlotActionType.QUICK_MOVE &&
-                        clickedSlot.inventory != player.getInventory()) {
-                    // For Shift+Click, items go directly to inventory
-                    ItemStack stack = clickedSlot.getStack();
-                    if (!stack.isEmpty()) {
-                        LOGGER.info("{} quick-moved item {} from Shulker Box into inventory",
-                                player.getName().getString(),
-                                stack.getName().getString());
-                    }
-                } else if (clickedSlot.inventory == player.getInventory()) {
-                    // Normal click placing into inventory
-                    ItemStack stack = clickedSlot.getStack();
-                    if (!stack.isEmpty() && actionType == SlotActionType.PICKUP) {
-                        LOGGER.info("{} took item {} from Shulker Box into inventory",
-                                player.getName().getString(),
-                                stack.getName().getString());
-                    }
-                }
-            }
-        }
-
     }
 }
 

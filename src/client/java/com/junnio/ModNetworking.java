@@ -9,8 +9,8 @@ public class ModNetworking {
 
     }
 
-    public static void sendShulkerLogPacket(String playerName, String shulkerName, String position, String dimension, boolean isContainer) {
-        ShulkerLogPayload payload = new ShulkerLogPayload(playerName, shulkerName, position, dimension, isContainer);
+    public static void sendShulkerLogPacket(String playerName, String shulkerName, String position, String dimension, boolean isContainer, String actionName, String itemName) {
+        ShulkerLogPayload payload = new ShulkerLogPayload(playerName, shulkerName, position, dimension, isContainer, actionName, itemName);
         ClientPlayNetworking.send(payload);
     }
 }
