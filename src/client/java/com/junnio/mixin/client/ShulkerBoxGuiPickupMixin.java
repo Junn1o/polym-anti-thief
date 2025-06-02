@@ -19,9 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
-
-    public String actionName = "";
-    public boolean isContainer = true;
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(
             int slotId,
@@ -54,12 +51,13 @@ public abstract class ShulkerBoxGuiPickupMixin {
 
                             Text customName = stack.getCustomName();
                             String playerName = player.getName().getString();
+                            String lowerPlayerName = playerName.toLowerCase();
                             String name = customName != null ? customName.getString() : stack.getName().getString();
-
-                            if (!name.endsWith("+" + playerName) && name.contains("+")) {
+                            String lowerName = name.toLowerCase();
+                            if (!lowerName.endsWith("+" + lowerPlayerName) && lowerName.contains("+")) {
                                 String dimension = player.getWorld().getRegistryKey().getValue().toString();
                                 String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, isContainer, actionName, actionName);
+                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, false, "", "");
                             }
                         }
                     }
@@ -76,9 +74,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                 if (lowerCaseContainerName.contains("+") && !lowerCaseContainerName.endsWith("+" + lowerCasePlayerName)) {
                     if (slotId >= 0 && slotId < handler.slots.size()) {
                         Slot clickedSlot = handler.getSlot(slotId);
-
-                        // Map SlotActionType to readable names
-                        actionName = switch (actionType) {
+                        String actionName = switch (actionType) {
                             case QUICK_MOVE -> "shift-clicked";
                             case PICKUP -> "picked up";
                             case PICKUP_ALL -> "picked up all";
@@ -86,7 +82,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             case SWAP -> "swapped";
                             case CLONE -> "cloned";
                             case QUICK_CRAFT -> "quick-crafted";
-                            default -> "unknown-action"; // Handle other cases
+                            default -> "unknown-action";
                         };
 
                         if ((actionType == SlotActionType.QUICK_MOVE
@@ -102,7 +98,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             if (!stack.isEmpty()) {
                                 String dimension = player.getWorld().getRegistryKey().getValue().toString();
                                 String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, isContainer, actionName, stack.getName().getString());
+                                ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, true, actionName, stack.getName().getString());
                             }
                         }
                     }

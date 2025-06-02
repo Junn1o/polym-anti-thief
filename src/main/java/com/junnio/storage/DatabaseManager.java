@@ -3,7 +3,9 @@ package com.junnio.storage;
 import net.fabricmc.loader.api.FabricLoader;
 import java.io.File;
 import java.sql.*;
-import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -30,7 +32,8 @@ public class DatabaseManager {
 
         LogEntry(String playerName, String actionName, String itemName,
                  String shulkerName, String position, String dimension, boolean isContainer) {
-            this.timestamp = Instant.now().toString();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss-dd/MM/yyyy");
+            this.timestamp = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).format(formatter);
             this.playerName = playerName;
             this.actionName = actionName;
             this.itemName = itemName;
@@ -114,9 +117,8 @@ public class DatabaseManager {
                     pstmt.addBatch();
                 }
 
-                int[] results = pstmt.executeBatch();
+                pstmt.executeBatch();
                 conn.commit();
-                LOGGER.info("Batch processed: {} entries", results.length);
             }
         } catch (SQLException e) {
             LOGGER.error("Failed to process batch: {}", e.getMessage());
@@ -142,7 +144,6 @@ public class DatabaseManager {
 
     public static void shutdown() {
         isShuttingDown = true;
-        // Process remaining entries
         processBatch();
         scheduledExecutor.shutdown();
         try {

@@ -16,8 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPlayNetworkHandler.class)
 public class ShulkerBoxNotification {
-	public String actionName = "";
-	public String itemName = "";
 	@Inject(method = "onItemPickupAnimation", at = @At("HEAD"))
 	private void onItemPickup(ItemPickupAnimationS2CPacket packet, CallbackInfo ci) {
 		MinecraftClient client = MinecraftClient.getInstance();
@@ -44,7 +42,7 @@ public class ShulkerBoxNotification {
 							String pos = String.format("(%.2f, %.2f, %.2f)", item.getX(), item.getY(), item.getZ());
 							String dimension = client.world.getRegistryKey().getValue().toString();
 							boolean isContainer = false;
-							ModNetworking.sendShulkerLogPacket(playerName, customName, pos, dimension, isContainer, actionName, itemName);
+							ModNetworking.sendShulkerLogPacket(playerName, customName, pos, dimension, isContainer, "", "");
 						}
 					}
 				}
