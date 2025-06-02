@@ -1,6 +1,7 @@
 package com.junnio.storage;
 
 import net.fabricmc.loader.api.FabricLoader;
+
 import java.io.File;
 import java.sql.*;
 import java.time.ZoneId;
@@ -20,8 +21,10 @@ public class DatabaseManager {
     private static final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     private static volatile boolean isShuttingDown = false;
 
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss-dd/MM/yyyy");
+
     private static class LogEntry {
-        final String timestamp;
+        final ZonedDateTime timestamp;
         final String playerName;
         final String actionName;
         final String itemName;
@@ -32,8 +35,7 @@ public class DatabaseManager {
 
         LogEntry(String playerName, String actionName, String itemName,
                  String shulkerName, String position, String dimension, boolean isContainer) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss-dd/MM/yyyy");
-            this.timestamp = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).format(formatter);
+            this.timestamp = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
             this.playerName = playerName;
             this.actionName = actionName;
             this.itemName = itemName;
@@ -55,6 +57,11 @@ public class DatabaseManager {
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute("PRAGMA journal_mode=WAL");
                     stmt.execute("PRAGMA synchronous=NORMAL");
+
+                    // Optional performance tweaks
+                    stmt.execute("PRAGMA temp_store=MEMORY");
+                    stmt.execute("PRAGMA cache_size=-64000");
+
                     stmt.execute("""
                         CREATE TABLE IF NOT EXISTS shulker_logs (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,14 +81,13 @@ public class DatabaseManager {
             // Start the batch processing scheduler
             scheduledExecutor.scheduleWithFixedDelay(
                     DatabaseManager::processBatch,
-                    1, // initial delay
-                    1, // period
+                    1,
+                    1,
                     TimeUnit.SECONDS
             );
 
         } catch (SQLException e) {
-            LOGGER.error("Failed to initialize database: {}", e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("Failed to initialize database: {}", e.getMessage(), e);
         }
     }
 
@@ -93,9 +99,7 @@ public class DatabaseManager {
         List<LogEntry> batch = new ArrayList<>();
         logQueue.drainTo(batch, BATCH_SIZE);
 
-        if (batch.isEmpty()) {
-            return;
-        }
+        if (batch.isEmpty()) return;
 
         try (Connection conn = DriverManager.getConnection(DB_URL)) {
             String sql = """
@@ -106,7 +110,7 @@ public class DatabaseManager {
             conn.setAutoCommit(false);
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 for (LogEntry entry : batch) {
-                    pstmt.setString(1, entry.timestamp);
+                    pstmt.setString(1, FORMATTER.format(entry.timestamp));
                     pstmt.setString(2, entry.playerName);
                     pstmt.setString(3, entry.actionName);
                     pstmt.setString(4, entry.itemName);
@@ -121,8 +125,7 @@ public class DatabaseManager {
                 conn.commit();
             }
         } catch (SQLException e) {
-            LOGGER.error("Failed to process batch: {}", e.getMessage());
-            e.printStackTrace();
+            LOGGER.error("Failed to process batch: {}", e.getMessage(), e);
         }
     }
 
@@ -134,23 +137,32 @@ public class DatabaseManager {
             return;
         }
 
-        LogEntry entry = new LogEntry(playerName, actionName, itemName,
-                shulkerName, position, dimension, isContainer);
+        try {
+            LogEntry entry = new LogEntry(playerName, actionName, itemName,
+                    shulkerName, position, dimension, isContainer);
 
-        if (!logQueue.offer(entry)) {
-            LOGGER.warn("Log queue is full! Dropping log entry for player: {}", playerName);
+            if (!logQueue.offer(entry)) {
+                LOGGER.warn("Log queue is full! Dropping log entry for player: {}", playerName);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to create log entry: {}", e.getMessage(), e);
         }
     }
 
     public static void shutdown() {
         isShuttingDown = true;
+        LOGGER.info("Shutting down DatabaseManager. Remaining queue size: {}", logQueue.size());
+
         processBatch();
         scheduledExecutor.shutdown();
+
         try {
             if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                LOGGER.warn("Forcing executor shutdown.");
                 scheduledExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {
+            LOGGER.error("Shutdown interrupted: {}", e.getMessage(), e);
             scheduledExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
