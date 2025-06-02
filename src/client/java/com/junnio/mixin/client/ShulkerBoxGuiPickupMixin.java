@@ -19,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ScreenHandler.class)
 public abstract class ShulkerBoxGuiPickupMixin {
+
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(
             int slotId,
@@ -27,53 +28,54 @@ public abstract class ShulkerBoxGuiPickupMixin {
             PlayerEntity player,
             CallbackInfo ci
     ) {
-        //if (player.getWorld().isClient()) return;
-
         ScreenHandler handler = (ScreenHandler) (Object) this;
 
-        // Allow only chest, barrel, hopper, dispenser, dropper
-        if ((handler instanceof GenericContainerScreenHandler ||
+        if (slotId < 0 || slotId >= handler.slots.size()) return;
+        Slot slot = handler.getSlot(slotId);
+        if (slot == null || slot.inventory == player.getInventory()) return;
+
+        String playerName = player.getName().getString();
+        String lowerPlayerName = playerName.toLowerCase();
+        String dimension = player.getWorld().getRegistryKey().getValue().toString();
+        String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+
+        boolean isValidAction = switch (actionType) {
+            case PICKUP, QUICK_MOVE, PICKUP_ALL, THROW, SWAP, CLONE, QUICK_CRAFT -> true;
+        };
+
+        if (!isValidAction) return;
+
+        // 1. Shulker taken from normal containers (chest, barrel, hopper...)
+        if (handler instanceof GenericContainerScreenHandler ||
                 handler instanceof HopperScreenHandler ||
-                handler instanceof Generic3x3ContainerScreenHandler)) {
-            if (slotId >= 0 && slotId < handler.slots.size()) {
-                Slot slot = handler.getSlot(slotId);
+                handler instanceof Generic3x3ContainerScreenHandler) {
 
-                // Ignore player inventory
-                if (slot != null && slot.inventory != player.getInventory()) {
+            if (!slot.getStack().isEmpty()) {
+                ItemStack stack = slot.getStack();
+                if (stack.getItem() instanceof BlockItem blockItem &&
+                        blockItem.getBlock() instanceof ShulkerBoxBlock) {
 
-                    // Only care if taking items out
-                    if (actionType == SlotActionType.PICKUP || actionType == SlotActionType.QUICK_MOVE) {
-                        ItemStack stack = slot.getStack();
+                    Text customName = stack.getCustomName();
+                    String name = (customName != null) ? customName.getString() : stack.getName().getString();
+                    String lowerName = name.toLowerCase();
 
-                        if (!stack.isEmpty() &&
-                                stack.getItem() instanceof BlockItem blockItem &&
-                                blockItem.getBlock() instanceof ShulkerBoxBlock) {
-
-                            Text customName = stack.getCustomName();
-                            String playerName = player.getName().getString();
-                            String lowerPlayerName = playerName.toLowerCase();
-                            String name = customName != null ? customName.getString() : stack.getName().getString();
-                            String lowerName = name.toLowerCase();
-                            if (!lowerName.endsWith("+" + lowerPlayerName) && lowerName.contains("+")) {
-                                String dimension = player.getWorld().getRegistryKey().getValue().toString();
-                                String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, false, "", "");
-                            }
-                        }
+                    if (lowerName.contains("+") && !lowerName.endsWith("+" + lowerPlayerName)) {
+                        ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, true, "taken", "");
                     }
                 }
             }
-        } else if (handler instanceof ShulkerBoxScreenHandler shulkerHandler) {
+
+            // 2. Items taken from shulker box GUIs
+        } else if (handler instanceof ShulkerBoxScreenHandler) {
             Screen screen = MinecraftClient.getInstance().currentScreen;
             if (screen instanceof HandledScreen<?> handledScreen) {
                 String containerName = handledScreen.getTitle().getString();
-                String lowerCaseContainerName = containerName.toLowerCase();
-                String playerName = player.getName().getString();
-                String lowerCasePlayerName = playerName.toLowerCase();
+                String lowerContainerName = containerName.toLowerCase();
 
-                if (lowerCaseContainerName.contains("+") && !lowerCaseContainerName.endsWith("+" + lowerCasePlayerName)) {
-                    if (slotId >= 0 && slotId < handler.slots.size()) {
-                        Slot clickedSlot = handler.getSlot(slotId);
+                if (lowerContainerName.contains("+") && !lowerContainerName.endsWith("+" + lowerPlayerName)) {
+                    ItemStack stack = slot.getStack();
+                    if (!stack.isEmpty()) {
+                        String itemName = stack.getName().getString();
                         String actionName = switch (actionType) {
                             case QUICK_MOVE -> "shift-clicked";
                             case PICKUP -> "picked up";
@@ -82,25 +84,8 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             case SWAP -> "swapped";
                             case CLONE -> "cloned";
                             case QUICK_CRAFT -> "quick-crafted";
-                            default -> "unknown-action";
                         };
-
-                        if ((actionType == SlotActionType.QUICK_MOVE
-                                || actionType == SlotActionType.THROW
-                                || actionType == SlotActionType.PICKUP
-                                || actionType == SlotActionType.PICKUP_ALL
-                                || actionType == SlotActionType.SWAP
-                                || actionType == SlotActionType.CLONE
-                                || actionType == SlotActionType.QUICK_CRAFT)
-                                && clickedSlot.inventory != player.getInventory()) {
-
-                            ItemStack stack = clickedSlot.getStack();
-                            if (!stack.isEmpty()) {
-                                String dimension = player.getWorld().getRegistryKey().getValue().toString();
-                                String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-                                ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, true, actionName, stack.getName().getString());
-                            }
-                        }
+                        ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, true, actionName, itemName);
                     }
                 }
             }
