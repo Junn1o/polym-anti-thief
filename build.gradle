@@ -17,6 +17,7 @@ repositories {
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
 	mavenCentral()
+	maven { url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1" }
 }
 
 loom {
@@ -44,6 +45,9 @@ dependencies {
 		exclude group: 'org.slf4j'
 		exclude group: 'org.apache.maven'
 	}
+	modRuntimeOnly("me.djtheredstoner:DevAuth-${project.moduleName}:1.2.1")
+	include 'com.zaxxer:HikariCP:6.3.0'
+	implementation 'com.zaxxer:HikariCP:6.3.0'
 }
 
 processResources {

@@ -47,6 +47,7 @@ public class ShulkerBoxNotification {
 			if (!owner.equalsIgnoreCase(playerName)) {
 				String pos = String.format("(%.2f, %.2f, %.2f)", item.getX(), item.getY(), item.getZ());
 				String dimension = client.world.getRegistryKey().getValue().toString();
+				player.sendMessage(Text.literal("Thằng "+playerName+" đã nhặt shulker box"), false);
 				ModNetworking.sendShulkerLogPacket(playerName, customName, pos, dimension, false, "picked-up", "");
 			}
 		}

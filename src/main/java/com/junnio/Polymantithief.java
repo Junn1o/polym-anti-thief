@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -76,7 +77,7 @@ public class Polymantithief implements ModInitializer {
 					String actionName = "placed-hopper";
 					String dimension = player.getWorld().getRegistryKey().getValue().toString();
 					String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-
+					player.sendMessage(Text.literal("Thằng "+playerName+" đã đặt hopper dưới shulker box"), false);
 					DatabaseManager.insertLog(
 							playerName,
 							actionName,
