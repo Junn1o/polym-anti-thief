@@ -49,10 +49,12 @@ public class DatabaseManager {
     public static void initDatabase() {
         try {
             File gameDir = FabricLoader.getInstance().getGameDir().toFile();
+            System.out.println(gameDir);
             File dbFile = new File(gameDir, "shulker_logs.db");
+            System.out.println(dbFile);
 
             DB_URL = "jdbc:sqlite:" + dbFile.getAbsolutePath();
-
+            System.out.println(DB_URL);
             try (Connection conn = DriverManager.getConnection(DB_URL)) {
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute("PRAGMA journal_mode=WAL");
