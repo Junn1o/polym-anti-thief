@@ -45,10 +45,11 @@ public class ShulkerBoxNotification {
 			String playerName = player.getName().getString().trim();
 
 			if (!owner.equalsIgnoreCase(playerName)) {
-				String pos = String.format("(%.2f, %.2f, %.2f)", item.getX(), item.getY(), item.getZ());
+				Float x = (float) player.getX();
+				Float y = (float) player.getY();
+				Float z = (float) player.getZ();
 				String dimension = client.world.getRegistryKey().getValue().toString();
-				player.sendMessage(Text.literal("Thằng "+playerName+" đã nhặt shulker box"), false);
-				ModNetworking.sendShulkerLogPacket(playerName, customName, pos, dimension, false, "picked-up", "");
+				ModNetworking.sendShulkerLogPacket(playerName, customName, x, y, z, dimension, false, "picked-up", "");
 			}
 		}
 	}

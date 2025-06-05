@@ -37,7 +37,9 @@ public abstract class ShulkerBoxGuiPickupMixin {
         String playerName = player.getName().getString();
         String lowerPlayerName = playerName.toLowerCase();
         String dimension = player.getWorld().getRegistryKey().getValue().toString();
-        String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+        Float x = (float) player.getX();
+        Float y = (float) player.getY();
+        Float z = (float) player.getZ();
 
         boolean isValidAction = switch (actionType) {
             case PICKUP, QUICK_MOVE, PICKUP_ALL, THROW, SWAP, CLONE, QUICK_CRAFT -> true;
@@ -60,8 +62,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                     String lowerName = name.toLowerCase();
 
                     if (lowerName.contains("+") && !lowerName.endsWith("+" + lowerPlayerName)) {
-                        player.sendMessage(Text.literal("Thằng "+playerName+" đã lấy shulker box trong container"), false);
-                        ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, true, "taken", "");
+                        ModNetworking.sendShulkerLogPacket(playerName, name, x, y, z, dimension, true, "taken", "");
                     }
                 }
             }
@@ -86,8 +87,7 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             case CLONE -> "cloned";
                             case QUICK_CRAFT -> "quick-crafted";
                         };
-                        player.sendMessage(Text.literal("Thằng "+playerName+" đã "+actionName+" item trong shulker box"), false);
-                        ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, true, actionName, itemName);
+                        ModNetworking.sendShulkerLogPacket(playerName, containerName, x, y, z, dimension, true, actionName, itemName);
                     }
                 }
             }

@@ -1,7 +1,7 @@
-
 package com.junnio.storage;
 
 import net.fabricmc.loader.api.FabricLoader;
+
 import java.io.File;
 import java.sql.*;
 import java.time.ZoneId;
@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -32,18 +33,21 @@ public class DatabaseManager {
         final String actionName;
         final String itemName;
         final String shulkerName;
-        final String position;
         final String dimension;
+        final Float x;
+        final Float y;
+        final Float z;
         final boolean isContainer;
 
-        LogEntry(String playerName, String actionName, String itemName,
-                 String shulkerName, String position, String dimension, boolean isContainer) {
+        LogEntry(String playerName, String actionName, String itemName, String shulkerName, Float x, Float y, Float z, String dimension, boolean isContainer) {
             this.timestamp = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
             this.playerName = playerName;
             this.actionName = actionName;
             this.itemName = itemName;
             this.shulkerName = shulkerName;
-            this.position = position;
+            this.x = x;
+            this.y = y;
+            this.z = z;
             this.dimension = dimension;
             this.isContainer = isContainer;
         }
@@ -65,8 +69,7 @@ public class DatabaseManager {
 
             dataSource = new HikariDataSource(config);
 
-            try (Connection conn = dataSource.getConnection();
-                 Statement stmt = conn.createStatement()) {
+            try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
 
                 stmt.execute("PRAGMA journal_mode=WAL");
                 stmt.execute("PRAGMA synchronous=NORMAL");
@@ -75,19 +78,22 @@ public class DatabaseManager {
                 stmt.execute("PRAGMA busy_timeout=30000");
 
                 stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS shulker_logs (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        timestamp TEXT NOT NULL,
-                        player_name TEXT NOT NULL,
-                        action_name TEXT,
-                        item_name TEXT,
-                        shulker_name TEXT NOT NULL,
-                        position TEXT NOT NULL,
-                        dimension TEXT NOT NULL,
-                        is_container BOOLEAN NOT NULL
-                    )
-                """);
+                            CREATE TABLE IF NOT EXISTS shulker_logs (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                timestamp TEXT NOT NULL,
+                                player_name TEXT NOT NULL,
+                                action_name TEXT,
+                                item_name TEXT,
+                                shulker_name TEXT NOT NULL,
+                                x REAL NOT NULL,
+                                y REAL NOT NULL,
+                                z REAL NOT NULL,
+                                dimension TEXT NOT NULL,
+                                is_container BOOLEAN NOT NULL
+                            )
+                        """);
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_player ON shulker_logs(player_name)");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_shulker_name ON shulker_logs(shulker_name)");
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON shulker_logs(timestamp)");
             }
 
@@ -124,13 +130,12 @@ public class DatabaseManager {
 
     private static void processBatch(List<LogEntry> batch) {
         String sql = """
-            INSERT INTO shulker_logs (timestamp, player_name, action_name, item_name, 
-            shulker_name, position, dimension, is_container)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """;
+                    INSERT INTO shulker_logs (timestamp, player_name, action_name, item_name, 
+                    shulker_name, x, y, z, dimension, is_container)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             conn.setAutoCommit(false);
 
@@ -140,33 +145,32 @@ public class DatabaseManager {
                 pstmt.setString(3, entry.actionName);
                 pstmt.setString(4, entry.itemName);
                 pstmt.setString(5, entry.shulkerName);
-                pstmt.setString(6, entry.position);
-                pstmt.setString(7, entry.dimension);
-                pstmt.setBoolean(8, entry.isContainer);
+                pstmt.setFloat(6, entry.x);
+                pstmt.setFloat(7, entry.y);
+                pstmt.setFloat(8, entry.z);
+                pstmt.setString(9, entry.dimension);
+                pstmt.setBoolean(10, entry.isContainer);
                 pstmt.addBatch();
             }
 
             pstmt.executeBatch();
             conn.commit();
-
+            LOGGER.debug("Inserting log entry for player: {}", pstmt);
             LOGGER.debug("Processed batch of {} entries", batch.size());
         } catch (SQLException e) {
             LOGGER.error("Failed to process batch: {}", e.getMessage(), e);
         }
     }
 
-    public static void insertLog(String playerName, String actionName, String itemName,
-                                 String shulkerName, String position, String dimension,
-                                 boolean isContainer) {
+    public static void insertLog(String playerName, String actionName, String itemName, String shulkerName, Float x, Float y, Float z, String dimension, boolean isContainer) {
         if (dataSource == null) {
             LOGGER.error("Database is not initialized!");
             return;
         }
 
         try {
-            LogEntry entry = new LogEntry(playerName, actionName, itemName,
-                    shulkerName, position, dimension, isContainer);
-
+            LogEntry entry = new LogEntry(playerName, actionName, itemName, shulkerName, x, y, z, dimension, isContainer);
+            LOGGER.debug("Inserting log entry for player: {}", playerName);
             if (!logQueue.offer(entry, 100, TimeUnit.MILLISECONDS)) {
                 LOGGER.warn("Log queue is full! Dropping log entry for player: {}", playerName);
             }

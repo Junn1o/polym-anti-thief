@@ -45,7 +45,9 @@ public class Polymantithief implements ModInitializer {
 						payload.actionName(),
 						payload.itemName(),
 						payload.shulkerName(),
-						payload.position(),
+						payload.x(),
+						payload.y(),
+						payload.z(),
 						payload.dimension(),
 						payload.isContainer()
 				);
@@ -77,13 +79,17 @@ public class Polymantithief implements ModInitializer {
 					String actionName = "placed-hopper";
 					String dimension = player.getWorld().getRegistryKey().getValue().toString();
 					String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-					player.sendMessage(Text.literal("Thằng "+playerName+" đã đặt hopper dưới shulker box"), false);
+					Float x = (float) player.getX();
+					Float y = (float) player.getY();
+					Float z = (float) player.getZ();
 					DatabaseManager.insertLog(
 							playerName,
 							actionName,
 							"",
 							shulkerName,
-							pos,
+							x,
+							y,
+							z,
 							dimension,
 							false
 					);
