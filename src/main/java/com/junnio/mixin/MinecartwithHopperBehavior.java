@@ -17,7 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Mixin(HopperMinecartEntity.class)
-public class blockShulkerBoxPull {
+public class MinecartwithHopperBehavior {
 
 	@Inject(method = "canOperate", at = @At("HEAD"), cancellable = true)
 	private void blockShulkerBoxPull(CallbackInfoReturnable<Boolean> cir) {
@@ -30,12 +30,11 @@ public class blockShulkerBoxPull {
 
 		if (be instanceof ShulkerBoxBlockEntity shulker && shulker.hasCustomName()) {
 			String customName = shulker.getCustomName().getString();
-			// Find the first occurrence of "+" followed by a word (e.g., "+Junn1o")
 			Pattern pattern = Pattern.compile("\\+(\\w+)");
 			Matcher matcher = pattern.matcher(customName);
 
-			if (matcher.find()) { // If "+PlayerName" is found anywhere in the string
-				String playerName = matcher.group(1); // Extracts "Junn1o" from "+Junn1o"
+			if (matcher.find()) {
+				String playerName = matcher.group(1);
 				if (PlayerDataCache.hasPlayerData(playerName, server)) {
 					cir.setReturnValue(false);
 				}
