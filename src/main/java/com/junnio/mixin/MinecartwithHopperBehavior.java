@@ -19,26 +19,28 @@ import java.util.regex.Pattern;
 @Mixin(HopperMinecartEntity.class)
 public class MinecartwithHopperBehavior {
 
-	@Inject(method = "canOperate", at = @At("HEAD"), cancellable = true)
-	private void blockShulkerBoxPull(CallbackInfoReturnable<Boolean> cir) {
-		HopperMinecartEntity self = (HopperMinecartEntity) (Object) this;
-		World world = self.getWorld();
-		if (!(world instanceof ServerWorld serverWorld)) return;
-		MinecraftServer server = serverWorld.getServer();
-		BlockPos above = self.getBlockPos().up();
-		BlockEntity be = world.getBlockEntity(above);
+    @Inject(method = "canOperate", at = @At("HEAD"), cancellable = true)
+    private void blockShulkerBoxPull(CallbackInfoReturnable<Boolean> cir) {
+        HopperMinecartEntity self = (HopperMinecartEntity) (Object) this;
+        World world = self.getWorld();
 
-		if (be instanceof ShulkerBoxBlockEntity shulker && shulker.hasCustomName()) {
-			String customName = shulker.getCustomName().getString();
-			Pattern pattern = Pattern.compile("\\+(\\w+)");
-			Matcher matcher = pattern.matcher(customName);
+        if (!(world instanceof ServerWorld serverWorld)) return;
+        MinecraftServer server = serverWorld.getServer();
 
-			if (matcher.find()) {
-				String playerName = matcher.group(1);
-				if (PlayerDataCache.hasPlayerData(playerName, server)) {
-					cir.setReturnValue(false);
-				}
-			}
-		}
-	}
+        BlockPos above = self.getBlockPos().up();
+        BlockEntity be = world.getBlockEntity(above);
+
+        if (!(be instanceof ShulkerBoxBlockEntity shulker)) return;
+        if (!shulker.hasCustomName()) return;
+
+        String customName = shulker.getCustomName().getString();
+        Matcher matcher = Pattern.compile("\\+(\\w+)").matcher(customName);
+
+        if (matcher.find()) {
+            String playerName = matcher.group(1);
+            if (PlayerDataCache.hasPlayerData(playerName, server)) {
+                cir.setReturnValue(false);
+            }
+        }
+    }
 }

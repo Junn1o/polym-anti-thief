@@ -194,12 +194,4 @@ public class DatabaseManager {
             }
         }
     }
-    private static void submitTask(Runnable task) {
-        if (executorService != null && !executorService.isShutdown()) {
-            executorService.submit(task);
-        } else {
-            throw new IllegalStateException("Database executor service is not available");
-        }
-    }
-
 }

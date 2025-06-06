@@ -1,4 +1,5 @@
 package com.junnio.mixin;
+
 import com.junnio.util.PlayerDataCache;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.entity.ItemEntity;
@@ -14,6 +15,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Mixin(ItemEntity.class)
 public class ItemEntityExplosion {
 
@@ -27,15 +31,14 @@ public class ItemEntityExplosion {
         Text customName = stack.getCustomName();
         if (customName == null) return;
         String customNameText = stack.getCustomName().getString();
-        if (!customNameText.startsWith("+")) return;
-
-        String playerName = customNameText.substring(1).split("[^\\w]")[0];
+        Matcher matcher = Pattern.compile("\\+(\\w+)").matcher(customNameText);
 
         MinecraftServer server = world.getServer();
-
-        if (source.isIn(DamageTypeTags.IS_EXPLOSION) &&
-                PlayerDataCache.hasPlayerData(playerName, server)) {
-            cir.setReturnValue(false);
+        if (matcher.find()) {
+            String playerName = matcher.group(1);
+            if (source.isIn(DamageTypeTags.IS_EXPLOSION) && PlayerDataCache.hasPlayerData(playerName, server)) {
+                cir.setReturnValue(false);
+            }
         }
     }
 }

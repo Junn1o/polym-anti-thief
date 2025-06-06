@@ -18,6 +18,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Mixin(CactusBlock.class)
 public class CactusShulkerBox {
 
@@ -30,19 +33,17 @@ public class CactusShulkerBox {
         if (!(blockItem.getBlock() instanceof ShulkerBoxBlock)) return;
         Text customName = stack.getCustomName();
         if (customName == null) return;
-
-        String customNameText = stack.getCustomName().getString();
-        if (!customNameText.startsWith("+")) return;
-
-        String playerName = customNameText.substring(1).split("[^\\w]")[0];
-
         if (!world.isClient && world instanceof ServerWorld serverWorld) {
             MinecraftServer server = serverWorld.getServer();
-
-            if (PlayerDataCache.hasPlayerData(playerName, server)) {
-                ci.cancel(); // prevent cactus destruction
-                item.setVelocity(0, 0.1, 0);
-                item.setPosition(item.getX(), item.getY() + 0.1, item.getZ());
+            String customNameText = stack.getCustomName().getString();
+            Matcher matcher = Pattern.compile("\\+(\\w+)").matcher(customNameText);
+            if (matcher.find()) {
+                String playerName = matcher.group(1);
+                if (PlayerDataCache.hasPlayerData(playerName, server)) {
+                    ci.cancel();
+                    item.setVelocity(0, 0.1, 0);
+                    item.setPosition(item.getX(), item.getY() + 0.1, item.getZ());
+                }
             }
         }
     }
