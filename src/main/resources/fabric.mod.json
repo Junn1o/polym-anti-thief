@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "polym-anti-thief",
 	"version": "${version}",
-	"name": "polym-anti-thief",
+	"name": "Polym Anti Thieft",
 	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
 		"Me!"

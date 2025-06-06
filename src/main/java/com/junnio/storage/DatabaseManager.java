@@ -26,7 +26,7 @@ public class DatabaseManager {
     private static volatile boolean isShuttingDown = false;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss-dd/MM/yyyy");
-
+    private static boolean initialized = false;
     private static class LogEntry {
         final ZonedDateTime timestamp;
         final String playerName;
@@ -52,8 +52,12 @@ public class DatabaseManager {
             this.isContainer = isContainer;
         }
     }
+    private static ExecutorService executorService;
 
     public static void initDatabase() {
+        if (executorService == null || executorService.isShutdown()) {
+            executorService = Executors.newFixedThreadPool(4);
+        }
         try {
             File gameDir = FabricLoader.getInstance().getGameDir().toFile();
             File dbFile = new File(gameDir, "shulker_logs.db");
@@ -178,21 +182,24 @@ public class DatabaseManager {
     }
 
     public static void shutdown() {
-        isShuttingDown = true;
-        LOGGER.info("Shutting down DatabaseManager. Remaining queue size: {}", logQueue.size());
-
-        processorPool.shutdown();
-        try {
-            if (!processorPool.awaitTermination(10, TimeUnit.SECONDS)) {
-                processorPool.shutdownNow();
+        if (executorService != null && !executorService.isShutdown()) {
+            try {
+                executorService.shutdown();
+                if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
             }
-        } catch (InterruptedException e) {
-            processorPool.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-
-        if (dataSource != null) {
-            dataSource.close();
         }
     }
+    private static void submitTask(Runnable task) {
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.submit(task);
+        } else {
+            throw new IllegalStateException("Database executor service is not available");
+        }
+    }
+
 }
