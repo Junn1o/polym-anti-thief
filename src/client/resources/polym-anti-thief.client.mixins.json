@@ -3,8 +3,8 @@
 	"package": "com.junnio.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ShulkerBoxNotification",
-		"ShulkerBoxGuiPickupMixin"
+		"ShulkerBoxGuiPickup",
+		"ShulkerBoxPickup"
 	],
 	"injectors": {
 		"defaultRequire": 1

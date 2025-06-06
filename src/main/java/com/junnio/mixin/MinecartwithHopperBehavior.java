@@ -13,8 +13,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Mixin(HopperMinecartEntity.class)
-public class blockShulkerBoxPull {
+public class MinecartwithHopperBehavior {
 
 	@Inject(method = "canOperate", at = @At("HEAD"), cancellable = true)
 	private void blockShulkerBoxPull(CallbackInfoReturnable<Boolean> cir) {
@@ -27,9 +30,11 @@ public class blockShulkerBoxPull {
 
 		if (be instanceof ShulkerBoxBlockEntity shulker && shulker.hasCustomName()) {
 			String customName = shulker.getCustomName().getString();
-			if (customName.startsWith("+")) {
-				String playerName = customName.substring(1).split("[^\\w]")[0];
+			Pattern pattern = Pattern.compile("\\+(\\w+)");
+			Matcher matcher = pattern.matcher(customName);
 
+			if (matcher.find()) {
+				String playerName = matcher.group(1);
 				if (PlayerDataCache.hasPlayerData(playerName, server)) {
 					cir.setReturnValue(false);
 				}

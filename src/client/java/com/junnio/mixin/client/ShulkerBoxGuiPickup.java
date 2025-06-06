@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ScreenHandler.class)
-public abstract class ShulkerBoxGuiPickupMixin {
+public abstract class ShulkerBoxGuiPickup {
 
     @Inject(method = "onSlotClick", at = @At("HEAD"))
     private void onShulkerTakenFromContainer(
@@ -33,11 +33,12 @@ public abstract class ShulkerBoxGuiPickupMixin {
         if (slotId < 0 || slotId >= handler.slots.size()) return;
         Slot slot = handler.getSlot(slotId);
         if (slot == null || slot.inventory == player.getInventory()) return;
-
         String playerName = player.getName().getString();
         String lowerPlayerName = playerName.toLowerCase();
         String dimension = player.getWorld().getRegistryKey().getValue().toString();
-        String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
+        Float x = (float) player.getX();
+        Float y = (float) player.getY();
+        Float z = (float) player.getZ();
 
         boolean isValidAction = switch (actionType) {
             case PICKUP, QUICK_MOVE, PICKUP_ALL, THROW, SWAP, CLONE, QUICK_CRAFT -> true;
@@ -49,18 +50,18 @@ public abstract class ShulkerBoxGuiPickupMixin {
         if (handler instanceof GenericContainerScreenHandler ||
                 handler instanceof HopperScreenHandler ||
                 handler instanceof Generic3x3ContainerScreenHandler) {
-
             if (!slot.getStack().isEmpty()) {
                 ItemStack stack = slot.getStack();
                 if (stack.getItem() instanceof BlockItem blockItem &&
                         blockItem.getBlock() instanceof ShulkerBoxBlock) {
 
                     Text customName = stack.getCustomName();
-                    String name = (customName != null) ? customName.getString() : stack.getName().getString();
-                    String lowerName = name.toLowerCase();
+                    String containerName = (customName != null) ? customName.getString() : stack.getName().getString();
+                    String lowerName = containerName.toLowerCase();
 
                     if (lowerName.contains("+") && !lowerName.endsWith("+" + lowerPlayerName)) {
-                        ModNetworking.sendShulkerLogPacket(playerName, name, pos, dimension, true, "taken", "");
+                        //player.sendMessage(Text.literal("Tôi đã lấy ShulkerBox §e"+containerName+" §ftrong container"),false);
+                        ModNetworking.sendShulkerLogPacket(playerName, containerName, x, y, z, dimension, true, "taken", "");
                     }
                 }
             }
@@ -85,7 +86,8 @@ public abstract class ShulkerBoxGuiPickupMixin {
                             case CLONE -> "cloned";
                             case QUICK_CRAFT -> "quick-crafted";
                         };
-                        ModNetworking.sendShulkerLogPacket(playerName, containerName, pos, dimension, true, actionName, itemName);
+                        //player.sendMessage(Text.literal("Tôi đã lấy "+itemName+" trong ShulkerBox §e"+containerName),false);
+                        ModNetworking.sendShulkerLogPacket(playerName, containerName, x, y, z, dimension, true, actionName, itemName);
                     }
                 }
             }
