@@ -3,7 +3,9 @@
 	"package": "com.junnio.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"blockShulkerBoxPull"
+		"blockShulkerBoxPull",
+		"CactusShulkerBox",
+		"ItemEntityExplosion"
 	],
 	"injectors": {
 		"defaultRequire": 1
