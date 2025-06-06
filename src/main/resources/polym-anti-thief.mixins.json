@@ -3,6 +3,8 @@
 	"package": "com.junnio.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"CactusShulkerBox",
+		"ItemEntityExplosion"
 		"DispenserBehavior",
 		"MinecartwithHopperBehavior"
 	],
