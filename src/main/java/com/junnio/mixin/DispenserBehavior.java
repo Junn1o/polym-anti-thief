@@ -36,20 +36,13 @@ public class DispenserBehavior {
 
 
         if (!world.isClient) {
-            ServerWorld serverWorld = (ServerWorld) world;
-            Vec3d center = Vec3d.ofCenter(pos);
-
-            PlayerEntity nearest = serverWorld.getClosestPlayer(center.x, center.y, center.z, 5.0, false);
-
-            if (nearest != null) {
-                boolean inserted = nearest.getInventory().insertStack(stack.copyWithCount(1));
-                if (inserted) {
-                    stack.decrement(1);
-                    return; // Success
-                }
-            }
-
-            ItemEntity drop = new ItemEntity(world, center.x, center.y, center.z, stack.copyWithCount(1));
+            ItemEntity drop = new ItemEntity(
+                    world,
+                    pos.getX() + 0.5,
+                    pos.getY(),
+                    pos.getZ() + 0.5,
+                    stack.copyWithCount(1)
+            );
             world.spawnEntity(drop);
             stack.decrement(1);
         }
