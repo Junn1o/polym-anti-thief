@@ -155,8 +155,6 @@ public class DatabaseManager {
 
             pstmt.executeBatch();
             conn.commit();
-            LOGGER.debug("Inserting log entry for player: {}", pstmt);
-            LOGGER.debug("Processed batch of {} entries", batch.size());
         } catch (SQLException e) {
             LOGGER.error("Failed to process batch: {}", e.getMessage(), e);
         }
@@ -170,7 +168,6 @@ public class DatabaseManager {
 
         try {
             LogEntry entry = new LogEntry(playerName, actionName, itemName, shulkerName, x, y, z, dimension, isContainer);
-            LOGGER.debug("Inserting log entry for player: {}", playerName);
             if (!logQueue.offer(entry, 100, TimeUnit.MILLISECONDS)) {
                 LOGGER.warn("Log queue is full! Dropping log entry for player: {}", playerName);
             }
