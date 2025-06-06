@@ -5,24 +5,25 @@ import com.junnio.storage.DatabaseManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.*;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ShulkerBoxBlockEntity;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Polymantithief implements ModInitializer {
 	public static final String MOD_ID = "polym-anti-thief";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-
+	public static final Identifier HANDSHAKE_CHANNEL = Identifier.of(MOD_ID, "handshake");
 	@Override
 	public void onInitialize() {
 		// Initialize database only on server side
@@ -44,11 +45,29 @@ public class Polymantithief implements ModInitializer {
 						payload.actionName(),
 						payload.itemName(),
 						payload.shulkerName(),
-						payload.position(),
+						payload.x(),
+						payload.y(),
+						payload.z(),
 						payload.dimension(),
 						payload.isContainer()
 				);
 			});
+		});
+		ServerLoginConnectionEvents.QUERY_START.register((handler, server, sender, synchronizer) -> {
+			PacketByteBuf buf = PacketByteBufs.create();
+			sender.sendPacket(HANDSHAKE_CHANNEL, buf);
+		});
+		ServerLoginNetworking.registerGlobalReceiver(HANDSHAKE_CHANNEL, (server, handler, understood, buf, synchronizer, responseSender) -> {
+			if (!understood) {
+				handler.disconnect(Text.literal("This server requires the Polym Anti-Thief mod."));
+				return;
+			}
+
+			boolean clientAccepted = buf.readBoolean();
+
+			if (!clientAccepted) {
+				handler.disconnect(Text.literal("Handshake failed: invalid client response."));
+			}
 		});
 		UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
 			if (world.isClient) return ActionResult.PASS;
@@ -73,16 +92,19 @@ public class Polymantithief implements ModInitializer {
 							return ActionResult.PASS;
 						}
 					}
-					String actionName = "placed-hopper";
 					String dimension = player.getWorld().getRegistryKey().getValue().toString();
-					String pos = String.format("(%.2f, %.2f, %.2f)", player.getX(), player.getY(), player.getZ());
-
+					Float x = (float) player.getX();
+					Float y = (float) player.getY();
+					Float z = (float) player.getZ();
+					//player.sendMessage(Text.literal("Tôi đã đặt hopper ở dưới ShulkerBox §e"+shulkerName+" §fđể làm điều mờ ám"),false);
 					DatabaseManager.insertLog(
 							playerName,
-							actionName,
+							"placed-hopper",
 							"",
 							shulkerName,
-							pos,
+							x,
+							y,
+							z,
 							dimension,
 							false
 					);

@@ -11,160 +11,195 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import static com.junnio.Polymantithief.LOGGER;
 
 public class DatabaseManager {
-    private static String DB_URL;
+    private static HikariDataSource dataSource;
     private static final int BATCH_SIZE = 100;
-    private static final int QUEUE_CAPACITY = 1000;
+    private static final int QUEUE_CAPACITY = 10000;
+    private static final int PROCESSOR_THREADS = 4;
     private static final BlockingQueue<LogEntry> logQueue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
-    private static final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    private static final ExecutorService processorPool = Executors.newFixedThreadPool(PROCESSOR_THREADS);
     private static volatile boolean isShuttingDown = false;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss-dd/MM/yyyy");
-
+    private static boolean initialized = false;
     private static class LogEntry {
         final ZonedDateTime timestamp;
         final String playerName;
         final String actionName;
         final String itemName;
         final String shulkerName;
-        final String position;
         final String dimension;
+        final Float x;
+        final Float y;
+        final Float z;
         final boolean isContainer;
 
-        LogEntry(String playerName, String actionName, String itemName,
-                 String shulkerName, String position, String dimension, boolean isContainer) {
+        LogEntry(String playerName, String actionName, String itemName, String shulkerName, Float x, Float y, Float z, String dimension, boolean isContainer) {
             this.timestamp = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
             this.playerName = playerName;
             this.actionName = actionName;
             this.itemName = itemName;
             this.shulkerName = shulkerName;
-            this.position = position;
+            this.x = x;
+            this.y = y;
+            this.z = z;
             this.dimension = dimension;
             this.isContainer = isContainer;
         }
     }
+    private static ExecutorService executorService;
 
     public static void initDatabase() {
+        if (executorService == null || executorService.isShutdown()) {
+            executorService = Executors.newFixedThreadPool(4);
+        }
         try {
             File gameDir = FabricLoader.getInstance().getGameDir().toFile();
             File dbFile = new File(gameDir, "shulker_logs.db");
+            String jdbcUrl = "jdbc:sqlite:" + dbFile.getAbsolutePath();
 
-            DB_URL = "jdbc:sqlite:" + dbFile.getAbsolutePath();
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(jdbcUrl);
+            config.setMaximumPoolSize(PROCESSOR_THREADS + 1); // +1 for other operations
+            config.setMinimumIdle(1);
+            config.setConnectionTimeout(30000);
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "250");
 
-            try (Connection conn = DriverManager.getConnection(DB_URL)) {
-                try (Statement stmt = conn.createStatement()) {
-                    stmt.execute("PRAGMA journal_mode=WAL");
-                    stmt.execute("PRAGMA synchronous=NORMAL");
+            dataSource = new HikariDataSource(config);
 
-                    // Optional performance tweaks
-                    stmt.execute("PRAGMA temp_store=MEMORY");
-                    stmt.execute("PRAGMA cache_size=-64000");
+            try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
 
-                    stmt.execute("""
-                        CREATE TABLE IF NOT EXISTS shulker_logs (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            timestamp TEXT NOT NULL,
-                            player_name TEXT NOT NULL,
-                            action_name TEXT,
-                            item_name TEXT,
-                            shulker_name TEXT NOT NULL,
-                            position TEXT NOT NULL,
-                            dimension TEXT NOT NULL,
-                            is_container BOOLEAN NOT NULL
-                        )
-                    """);
-                }
+                stmt.execute("PRAGMA journal_mode=WAL");
+                stmt.execute("PRAGMA synchronous=NORMAL");
+                stmt.execute("PRAGMA temp_store=MEMORY");
+                stmt.execute("PRAGMA cache_size=-64000");
+                stmt.execute("PRAGMA busy_timeout=30000");
+
+                stmt.execute("""
+                            CREATE TABLE IF NOT EXISTS shulker_logs (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                timestamp TEXT NOT NULL,
+                                player_name TEXT NOT NULL,
+                                action_name TEXT,
+                                item_name TEXT,
+                                shulker_name TEXT NOT NULL,
+                                x REAL NOT NULL,
+                                y REAL NOT NULL,
+                                z REAL NOT NULL,
+                                dimension TEXT NOT NULL,
+                                is_container BOOLEAN NOT NULL
+                            )
+                        """);
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_player ON shulker_logs(player_name)");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_shulker_name ON shulker_logs(shulker_name)");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON shulker_logs(timestamp)");
             }
 
-            // Start the batch processing scheduler
-            scheduledExecutor.scheduleWithFixedDelay(
-                    DatabaseManager::processBatch,
-                    1,
-                    1,
-                    TimeUnit.SECONDS
-            );
+            // Start multiple processor threads
+            for (int i = 0; i < PROCESSOR_THREADS; i++) {
+                processorPool.submit(DatabaseManager::processQueueContinuously);
+            }
 
         } catch (SQLException e) {
             LOGGER.error("Failed to initialize database: {}", e.getMessage(), e);
         }
     }
 
-    private static void processBatch() {
-        if (isShuttingDown && logQueue.isEmpty()) {
-            return;
+    private static void processQueueContinuously() {
+        while (!isShuttingDown || !logQueue.isEmpty()) {
+            try {
+                List<LogEntry> batch = new ArrayList<>(BATCH_SIZE);
+                LogEntry entry = logQueue.poll(100, TimeUnit.MILLISECONDS);
+
+                if (entry == null) continue;
+
+                batch.add(entry);
+                logQueue.drainTo(batch, BATCH_SIZE - 1);
+
+                if (!batch.isEmpty()) {
+                    processBatch(batch);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
+    }
 
-        List<LogEntry> batch = new ArrayList<>();
-        logQueue.drainTo(batch, BATCH_SIZE);
+    private static void processBatch(List<LogEntry> batch) {
+        String sql = """
+                    INSERT INTO shulker_logs (timestamp, player_name, action_name, item_name, 
+                    shulker_name, x, y, z, dimension, is_container)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
 
-        if (batch.isEmpty()) return;
-
-        try (Connection conn = DriverManager.getConnection(DB_URL)) {
-            String sql = """
-                INSERT INTO shulker_logs (timestamp, player_name, action_name, item_name, shulker_name, position, dimension, is_container)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """;
+        try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             conn.setAutoCommit(false);
-            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                for (LogEntry entry : batch) {
-                    pstmt.setString(1, FORMATTER.format(entry.timestamp));
-                    pstmt.setString(2, entry.playerName);
-                    pstmt.setString(3, entry.actionName);
-                    pstmt.setString(4, entry.itemName);
-                    pstmt.setString(5, entry.shulkerName);
-                    pstmt.setString(6, entry.position);
-                    pstmt.setString(7, entry.dimension);
-                    pstmt.setBoolean(8, entry.isContainer);
-                    pstmt.addBatch();
-                }
 
-                pstmt.executeBatch();
-                conn.commit();
+            for (LogEntry entry : batch) {
+                pstmt.setString(1, FORMATTER.format(entry.timestamp));
+                pstmt.setString(2, entry.playerName);
+                pstmt.setString(3, entry.actionName);
+                pstmt.setString(4, entry.itemName);
+                pstmt.setString(5, entry.shulkerName);
+                pstmt.setFloat(6, entry.x);
+                pstmt.setFloat(7, entry.y);
+                pstmt.setFloat(8, entry.z);
+                pstmt.setString(9, entry.dimension);
+                pstmt.setBoolean(10, entry.isContainer);
+                pstmt.addBatch();
             }
+
+            pstmt.executeBatch();
+            conn.commit();
         } catch (SQLException e) {
             LOGGER.error("Failed to process batch: {}", e.getMessage(), e);
         }
     }
 
-    public static void insertLog(String playerName, String actionName, String itemName,
-                                 String shulkerName, String position, String dimension,
-                                 boolean isContainer) {
-        if (DB_URL == null) {
-            LOGGER.error("Database URL is not initialized!");
+    public static void insertLog(String playerName, String actionName, String itemName, String shulkerName, Float x, Float y, Float z, String dimension, boolean isContainer) {
+        if (dataSource == null) {
+            LOGGER.error("Database is not initialized!");
             return;
         }
 
         try {
-            LogEntry entry = new LogEntry(playerName, actionName, itemName,
-                    shulkerName, position, dimension, isContainer);
-
-            if (!logQueue.offer(entry)) {
+            LogEntry entry = new LogEntry(playerName, actionName, itemName, shulkerName, x, y, z, dimension, isContainer);
+            if (!logQueue.offer(entry, 100, TimeUnit.MILLISECONDS)) {
                 LOGGER.warn("Log queue is full! Dropping log entry for player: {}", playerName);
             }
-        } catch (Exception e) {
-            LOGGER.error("Failed to create log entry: {}", e.getMessage(), e);
+        } catch (InterruptedException e) {
+            LOGGER.error("Failed to queue log entry: {}", e.getMessage());
+            Thread.currentThread().interrupt();
         }
     }
 
     public static void shutdown() {
-        isShuttingDown = true;
-        LOGGER.info("Shutting down DatabaseManager. Remaining queue size: {}", logQueue.size());
-
-        processBatch();
-        scheduledExecutor.shutdown();
-
-        try {
-            if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                LOGGER.warn("Forcing executor shutdown.");
-                scheduledExecutor.shutdownNow();
+        if (executorService != null && !executorService.isShutdown()) {
+            try {
+                executorService.shutdown();
+                if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
             }
-        } catch (InterruptedException e) {
-            LOGGER.error("Shutdown interrupted: {}", e.getMessage(), e);
-            scheduledExecutor.shutdownNow();
-            Thread.currentThread().interrupt();
         }
     }
+    private static void submitTask(Runnable task) {
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.submit(task);
+        } else {
+            throw new IllegalStateException("Database executor service is not available");
+        }
+    }
+
 }
