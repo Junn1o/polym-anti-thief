@@ -96,7 +96,7 @@ public class Polymantithief implements ModInitializer {
 					Float x = (float) player.getX();
 					Float y = (float) player.getY();
 					Float z = (float) player.getZ();
-					player.sendMessage(Text.literal("Tôi đã đặt hopper ở dưới ShulkerBox §e"+shulkerName+" §fđể làm điều mờ ám"),false);
+					//player.sendMessage(Text.literal("Tôi đã đặt hopper ở dưới ShulkerBox §e"+shulkerName+" §fđể làm điều mờ ám"),false);
 					DatabaseManager.insertLog(
 							playerName,
 							"placed-hopper",

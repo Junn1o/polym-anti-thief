@@ -60,7 +60,7 @@ public abstract class ShulkerBoxGuiPickup {
                     String lowerName = containerName.toLowerCase();
 
                     if (lowerName.contains("+") && !lowerName.endsWith("+" + lowerPlayerName)) {
-                        player.sendMessage(Text.literal("Tôi đã lấy ShulkerBox §e"+containerName+" §ftrong container"),false);
+                        //player.sendMessage(Text.literal("Tôi đã lấy ShulkerBox §e"+containerName+" §ftrong container"),false);
                         ModNetworking.sendShulkerLogPacket(playerName, containerName, x, y, z, dimension, true, "taken", "");
                     }
                 }
@@ -86,7 +86,7 @@ public abstract class ShulkerBoxGuiPickup {
                             case CLONE -> "cloned";
                             case QUICK_CRAFT -> "quick-crafted";
                         };
-                        player.sendMessage(Text.literal("Tôi đã lấy "+itemName+" trong ShulkerBox §e"+containerName),false);
+                        //player.sendMessage(Text.literal("Tôi đã lấy "+itemName+" trong ShulkerBox §e"+containerName),false);
                         ModNetworking.sendShulkerLogPacket(playerName, containerName, x, y, z, dimension, true, actionName, itemName);
                     }
                 }

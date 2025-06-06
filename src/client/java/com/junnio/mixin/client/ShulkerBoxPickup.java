@@ -49,7 +49,7 @@ public class ShulkerBoxPickup {
 				Float y = (float) player.getY();
 				Float z = (float) player.getZ();
 				String dimension = client.world.getRegistryKey().getValue().toString();
-				player.sendMessage(Text.literal("Tôi đã nhặt ShulkerBox §e"+containerName+" §fở dưới dất"),false);
+				//player.sendMessage(Text.literal("Tôi đã nhặt ShulkerBox §e"+containerName+" §fở dưới dất"),false);
 				ModNetworking.sendShulkerLogPacket(playerName, containerName, x, y, z, dimension, false, "picked-up", "");
 			}
 		}
