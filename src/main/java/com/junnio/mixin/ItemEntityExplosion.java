@@ -39,6 +39,10 @@ public class ItemEntityExplosion {
             if (source.isIn(DamageTypeTags.IS_EXPLOSION) && PlayerDataCache.hasPlayerData(playerName, server)) {
                 cir.setReturnValue(false);
             }
+            if (source.isIn(DamageTypeTags.IS_FIRE) && PlayerDataCache.hasPlayerData(playerName, server)) {
+                item.discard();
+                cir.setReturnValue(true);
+            }
         }
     }
 }
