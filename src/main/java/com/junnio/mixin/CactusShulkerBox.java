@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.CactusBlock;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityCollisionHandler;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
@@ -25,7 +26,7 @@ import java.util.regex.Pattern;
 public class CactusShulkerBox {
 
     @Inject(method = "onEntityCollision", at = @At("HEAD"), cancellable = true)
-    private void preventShulkerBoxDeletion(BlockState state, World world, BlockPos pos, Entity entity, CallbackInfo ci) {
+    private void preventShulkerBoxDeletion(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, CallbackInfo ci) {
         if (!(entity instanceof ItemEntity item)) return;
 
         ItemStack stack = item.getStack();
